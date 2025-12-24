@@ -3,6 +3,8 @@
 package wireguard
 
 import (
+	"encoding/base64"
+	"encoding/hex"
 	"fmt"
 	"log"
 	"os/exec"
@@ -45,11 +47,20 @@ func (i *Interface) createWindows() error {
 
 	wgDevice := device.NewDevice(tunDevice, bind, logger)
 
+	// Convert private key from base64 to hex for IPC
+	privKeyBytes, err := base64.StdEncoding.DecodeString(i.PrivateKey)
+	if err != nil {
+		wgDevice.Close()
+		tunDevice.Close()
+		return fmt.Errorf("failed to decode private key: %w", err)
+	}
+	privKeyHex := hex.EncodeToString(privKeyBytes)
+
 	// Configure the device with our private key and listen port
-	// The IPC format is what wg(8) uses
+	// The IPC format expects hex-encoded keys
 	config := fmt.Sprintf(`private_key=%s
 listen_port=%d
-`, i.PrivateKey, i.ListenPort)
+`, privKeyHex, i.ListenPort)
 
 	if err := wgDevice.IpcSet(config); err != nil {
 		wgDevice.Close()
