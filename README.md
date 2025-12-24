@@ -69,6 +69,8 @@ brew install wireguard-tools wireguard-go
 
 ### From Source
 
+#### Linux / macOS
+
 ```bash
 # Clone the repository
 git clone https://github.com/vpn/wireguard-mesh
@@ -77,8 +79,26 @@ cd wireguard-mesh
 # Build binaries
 make build
 
-# Install (optional)
+# Install (optional - Linux/macOS only)
 sudo make install
+```
+
+#### Windows
+
+```cmd
+# Clone the repository
+git clone https://github.com/vpn/wireguard-mesh
+cd wireguard-mesh
+
+# Build using the batch script
+build.bat
+
+# Or use PowerShell
+powershell -ExecutionPolicy Bypass -File build.ps1
+
+# Or build directly with Go
+go build -o bin\vpn-server.exe .\cmd\server
+go build -o bin\vpn-client.exe .\cmd\client
 ```
 
 ### Pre-built Binaries
@@ -89,12 +109,22 @@ Download the latest release for your platform from the releases page.
 
 ### 1. Start the Coordination Server
 
+**Linux / macOS:**
 ```bash
 # Run with default settings
 sudo ./bin/vpn-server
 
 # Or specify custom settings
 sudo ./bin/vpn-server -listen :8080 -network 10.100.0.0/16
+```
+
+**Windows (run as Administrator):**
+```cmd
+# Run with default settings
+.\bin\vpn-server.exe
+
+# Or specify custom settings
+.\bin\vpn-server.exe -listen :8080 -network 10.100.0.0/16
 ```
 
 The server will:
@@ -107,12 +137,22 @@ The server will:
 
 On each client machine:
 
+**Linux / macOS:**
 ```bash
 # Run with default settings (requires root for interface creation)
 sudo ./bin/vpn-client -server http://SERVER_IP:8080
 
 # Run as exit node
 sudo ./bin/vpn-client -server http://SERVER_IP:8080 -exit-node
+```
+
+**Windows (run as Administrator):**
+```cmd
+# Run with default settings
+.\bin\vpn-client.exe -server http://SERVER_IP:8080
+
+# Run as exit node
+.\bin\vpn-client.exe -server http://SERVER_IP:8080 -exit-node
 ```
 
 The client will:
