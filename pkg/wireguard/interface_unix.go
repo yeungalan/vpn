@@ -31,9 +31,11 @@ func (i *Interface) createLinux() error {
 }
 
 func (i *Interface) createDarwin() error {
-	// On macOS, we use wireguard-go userspace implementation
-	// The interface is created differently
-	cmd := exec.Command("wireguard-go", i.Name)
+	// On macOS, interface names must be utun[0-9]*
+	// Let the system pick the next available utun interface
+	utunName := "utun"
+
+	cmd := exec.Command("wireguard-go", utunName)
 	if output, err := cmd.CombinedOutput(); err != nil {
 		// Check if already exists
 		if !strings.Contains(string(output), "already exists") {
@@ -41,16 +43,32 @@ func (i *Interface) createDarwin() error {
 		}
 	}
 
-	// Set IP address
-	cmd = exec.Command("ifconfig", i.Name, "inet", i.Address, i.Address)
-	if output, err := cmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("failed to set IP address: %w, output: %s", err, string(output))
+	// Extract actual interface name from UAPI socket path
+	// wireguard-go creates /var/run/wireguard/utunX.sock
+	// For now, try utun interfaces in order
+	actualName := ""
+	for j := 0; j < 10; j++ {
+		testName := fmt.Sprintf("utun%d", j)
+		cmd = exec.Command("ifconfig", testName)
+		if cmd.Run() == nil {
+			actualName = testName
+			break
+		}
 	}
 
-	// Bring interface up
-	cmd = exec.Command("ifconfig", i.Name, "up")
+	if actualName == "" {
+		return fmt.Errorf("could not find created utun interface")
+	}
+
+	// Set IP address - extract IP without CIDR
+	ip := i.Address
+	if idx := strings.Index(ip, "/"); idx != -1 {
+		ip = ip[:idx]
+	}
+
+	cmd = exec.Command("ifconfig", actualName, "inet", ip, ip, "up")
 	if output, err := cmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("failed to bring up interface: %w, output: %s", err, string(output))
+		return fmt.Errorf("failed to configure interface: %w, output: %s", err, string(output))
 	}
 
 	return nil
