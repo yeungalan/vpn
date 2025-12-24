@@ -22,6 +22,7 @@ type Interface struct {
 	ListenPort int
 	Address    string
 	client     *wgctrl.Client
+	process    interface{} // Platform-specific process handle (e.g., *exec.Cmd on macOS)
 }
 
 // Config holds the configuration for a WireGuard interface

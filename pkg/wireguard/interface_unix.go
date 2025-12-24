@@ -4,8 +4,10 @@ package wireguard
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
+	"time"
 )
 
 func (i *Interface) createLinux() error {
@@ -35,33 +37,45 @@ func (i *Interface) createDarwin() error {
 	// Let the system pick the next available utun interface
 	utunName := "utun"
 
+	// Start wireguard-go in the background
 	cmd := exec.Command("wireguard-go", utunName)
-	if output, err := cmd.CombinedOutput(); err != nil {
-		// Check if already exists
-		if !strings.Contains(string(output), "already exists") {
-			return fmt.Errorf("failed to create interface: %w, output: %s", err, string(output))
-		}
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("failed to start wireguard-go: %w", err)
 	}
 
-	// Extract actual interface name from UAPI socket path
-	// wireguard-go creates /var/run/wireguard/utunX.sock
-	// For now, try utun interfaces in order
+	// Store the process so we can kill it later
+	i.process = cmd
+
+	// Wait a moment for the interface to be created
+	time.Sleep(500 * time.Millisecond)
+
+	// Find the created utun interface
 	actualName := ""
 	for j := 0; j < 10; j++ {
 		testName := fmt.Sprintf("utun%d", j)
-		cmd = exec.Command("ifconfig", testName)
-		if cmd.Run() == nil {
+		testCmd := exec.Command("ifconfig", testName)
+		if testCmd.Run() == nil {
 			actualName = testName
 			break
 		}
 	}
 
 	if actualName == "" {
+		cmd.Process.Kill()
 		return fmt.Errorf("could not find created utun interface")
 	}
 
 	// Update interface name to actual utun name
 	i.Name = actualName
+
+	// Wait for the UAPI socket to be created
+	socketPath := fmt.Sprintf("/var/run/wireguard/%s.sock", actualName)
+	for retry := 0; retry < 10; retry++ {
+		if _, err := os.Stat(socketPath); err == nil {
+			break
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
 
 	// Set IP address - extract IP without CIDR
 	ip := i.Address
@@ -69,8 +83,9 @@ func (i *Interface) createDarwin() error {
 		ip = ip[:idx]
 	}
 
-	cmd = exec.Command("ifconfig", actualName, "inet", ip, ip, "up")
-	if output, err := cmd.CombinedOutput(); err != nil {
+	ipCmd := exec.Command("ifconfig", actualName, "inet", ip, ip, "up")
+	if output, err := ipCmd.CombinedOutput(); err != nil {
+		cmd.Process.Kill()
 		return fmt.Errorf("failed to configure interface: %w, output: %s", err, string(output))
 	}
 
@@ -91,9 +106,17 @@ func (i *Interface) destroyLinux() error {
 }
 
 func (i *Interface) destroyDarwin() error {
-	// Kill wireguard-go process
-	cmd := exec.Command("pkill", "-f", "wireguard-go "+i.Name)
-	_ = cmd.Run() // Ignore errors as process might not exist
+	// Kill the wireguard-go process if we have a reference to it
+	if i.process != nil {
+		if cmd, ok := i.process.(*exec.Cmd); ok && cmd.Process != nil {
+			_ = cmd.Process.Kill()
+			_ = cmd.Wait() // Clean up zombie process
+		}
+	}
+
+	// Also try to kill by name in case we lost the reference
+	killCmd := exec.Command("pkill", "-f", "wireguard-go.*"+i.Name)
+	_ = killCmd.Run() // Ignore errors as process might not exist
 
 	return nil
 }
