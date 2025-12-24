@@ -70,25 +70,7 @@ func (i *Interface) Create() error {
 	}
 }
 
-// Configure configures the WireGuard interface
-func (i *Interface) Configure() error {
-	privateKey, err := wgtypes.ParseKey(i.PrivateKey)
-	if err != nil {
-		return fmt.Errorf("failed to parse private key: %w", err)
-	}
-
-	port := i.ListenPort
-	config := wgtypes.Config{
-		PrivateKey: &privateKey,
-		ListenPort: &port,
-	}
-
-	if err := i.client.ConfigureDevice(i.Name, config); err != nil {
-		return fmt.Errorf("failed to configure device: %w", err)
-	}
-
-	return nil
-}
+// Configure is implemented in configure_windows.go
 
 // AddPeer adds a peer to the WireGuard interface
 func (i *Interface) AddPeer(peer PeerConfig) error {
