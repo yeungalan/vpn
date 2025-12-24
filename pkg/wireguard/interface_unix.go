@@ -71,6 +71,16 @@ func (i *Interface) createDarwin() error {
 		return fmt.Errorf("failed to configure interface: %w, output: %s", err, string(output))
 	}
 
+	// Configure WireGuard private key and listen port
+	// Use wg command to configure the interface
+	cmd = exec.Command("wg", "set", actualName,
+		"private-key", "/dev/stdin",
+		"listen-port", fmt.Sprintf("%d", i.ListenPort))
+	cmd.Stdin = strings.NewReader(i.PrivateKey)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("failed to configure WireGuard: %w, output: %s", err, string(output))
+	}
+
 	return nil
 }
 
