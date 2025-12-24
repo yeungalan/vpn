@@ -62,8 +62,15 @@ brew install wireguard-tools wireguard-go
 ```
 
 ### Windows
+**Required:**
 - Download and install WireGuard from https://www.wireguard.com/install/
-- Ensure the WireGuard service is running
+- Install `wireguard-go` (userspace implementation):
+  ```cmd
+  # Download from: https://git.zx2c4.com/wireguard-go/about/
+  # Or use the WireGuard installer which includes it
+  # Make sure wireguard-go.exe is in your PATH
+  ```
+- Run Command Prompt or PowerShell **as Administrator**
 
 ## Installation
 
