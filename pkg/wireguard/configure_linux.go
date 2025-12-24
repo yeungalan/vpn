@@ -1,4 +1,4 @@
-//go:build darwin
+//go:build linux
 
 package wireguard
 
@@ -8,7 +8,7 @@ import (
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 )
 
-// Configure configures the WireGuard interface on macOS
+// Configure configures the WireGuard interface on Linux
 func (i *Interface) Configure() error {
 	privateKey, err := wgtypes.ParseKey(i.PrivateKey)
 	if err != nil {

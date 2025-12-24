@@ -1,5 +1,3 @@
-//go:build linux
-
 package wireguard
 
 import (
@@ -72,26 +70,6 @@ func (i *Interface) Create() error {
 	default:
 		return fmt.Errorf("unsupported platform: %s", runtime.GOOS)
 	}
-}
-
-// Configure configures the WireGuard interface
-func (i *Interface) Configure() error {
-	privateKey, err := wgtypes.ParseKey(i.PrivateKey)
-	if err != nil {
-		return fmt.Errorf("failed to parse private key: %w", err)
-	}
-
-	port := i.ListenPort
-	config := wgtypes.Config{
-		PrivateKey: &privateKey,
-		ListenPort: &port,
-	}
-
-	if err := i.client.ConfigureDevice(i.Name, config); err != nil {
-		return fmt.Errorf("failed to configure device: %w", err)
-	}
-
-	return nil
 }
 
 // AddPeer adds a peer to the WireGuard interface

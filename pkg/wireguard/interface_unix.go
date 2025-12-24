@@ -60,6 +60,9 @@ func (i *Interface) createDarwin() error {
 		return fmt.Errorf("could not find created utun interface")
 	}
 
+	// Update interface name to actual utun name
+	i.Name = actualName
+
 	// Set IP address - extract IP without CIDR
 	ip := i.Address
 	if idx := strings.Index(ip, "/"); idx != -1 {
@@ -69,16 +72,6 @@ func (i *Interface) createDarwin() error {
 	cmd = exec.Command("ifconfig", actualName, "inet", ip, ip, "up")
 	if output, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("failed to configure interface: %w, output: %s", err, string(output))
-	}
-
-	// Configure WireGuard private key and listen port
-	// Use wg command to configure the interface
-	cmd = exec.Command("wg", "set", actualName,
-		"private-key", "/dev/stdin",
-		"listen-port", fmt.Sprintf("%d", i.ListenPort))
-	cmd.Stdin = strings.NewReader(i.PrivateKey)
-	if output, err := cmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("failed to configure WireGuard: %w, output: %s", err, string(output))
 	}
 
 	return nil
