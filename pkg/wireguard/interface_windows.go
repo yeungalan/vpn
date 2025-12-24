@@ -21,6 +21,14 @@ var (
 )
 
 func (i *Interface) createWindows() error {
+	// Clean up any existing device with the same name
+	if existingDevice, ok := runningDevices[i.Name]; ok {
+		log.Printf("Cleaning up existing device: %s", i.Name)
+		existingDevice.Close()
+		delete(runningDevices, i.Name)
+		time.Sleep(1 * time.Second) // Give it time to fully close
+	}
+
 	// Create TUN device using wintun (embedded in wireguard-go)
 	tunDevice, err := tun.CreateTUN(i.Name, device.DefaultMTU)
 	if err != nil {
