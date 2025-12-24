@@ -3,7 +3,9 @@ package wireguard
 import (
 	"fmt"
 	"net"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"time"
@@ -241,11 +243,30 @@ func (i *Interface) createDarwin() error {
 }
 
 func (i *Interface) createWindows() error {
-	// On Windows, we use wireguard-go or the kernel driver
-	// This requires administrative privileges
-	cmd := exec.Command("wireguard", "/installtunnelservice", i.Name)
+	// On Windows, we use wireguard-go userspace implementation
+	// This is simpler and more portable than using the Windows service
+
+	// Start wireguard-go
+	cmd := exec.Command("wireguard-go", i.Name)
 	if output, err := cmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("failed to create interface: %w, output: %s", err, string(output))
+		// Check if already exists
+		if !strings.Contains(string(output), "already exists") {
+			return fmt.Errorf("failed to create interface: %w, output: %s", err, string(output))
+		}
+	}
+
+	// Wait a moment for interface to be ready
+	time.Sleep(500 * time.Millisecond)
+
+	// Set IP address using netsh
+	// Extract IP and mask from CIDR notation
+	ip := strings.Split(i.Address, "/")[0]
+
+	// Add IP address
+	cmd = exec.Command("netsh", "interface", "ip", "set", "address",
+		"name="+i.Name, "static", ip, "255.255.255.255")
+	if output, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("failed to set IP address: %w, output: %s", err, string(output))
 	}
 
 	return nil
@@ -268,10 +289,16 @@ func (i *Interface) destroyDarwin() error {
 }
 
 func (i *Interface) destroyWindows() error {
-	cmd := exec.Command("wireguard", "/uninstalltunnelservice", i.Name)
-	if output, err := cmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("failed to destroy interface: %w, output: %s", err, string(output))
-	}
+	// Kill wireguard-go process
+	cmd := exec.Command("taskkill", "/F", "/IM", "wireguard-go.exe")
+	_ = cmd.Run() // Ignore errors as process might not exist
+
+	// Alternative: try to kill by window title/interface name
+	cmd = exec.Command("wmic", "process", "where",
+		fmt.Sprintf("name='wireguard-go.exe' and commandline like '%%%s%%'", i.Name),
+		"delete")
+	_ = cmd.Run() // Ignore errors
+
 	return nil
 }
 
