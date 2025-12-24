@@ -1,4 +1,4 @@
-// +build !windows
+// +build windows
 
 package wireguard
 
@@ -63,10 +63,6 @@ func NewInterface(config Config) (*Interface, error) {
 // Create creates the WireGuard interface
 func (i *Interface) Create() error {
 	switch runtime.GOOS {
-	case "linux":
-		return i.createLinux()
-	case "darwin":
-		return i.createDarwin()
 	case "windows":
 		return i.createWindows()
 	default:
@@ -179,18 +175,12 @@ func (i *Interface) Destroy() error {
 	defer i.client.Close()
 
 	switch runtime.GOOS {
-	case "linux":
-		return i.destroyLinux()
-	case "darwin":
-		return i.destroyDarwin()
 	case "windows":
 		return i.destroyWindows()
 	default:
 		return fmt.Errorf("unsupported platform: %s", runtime.GOOS)
 	}
 }
-
-// Platform-specific implementations are in interface_unix.go and interface_windows.go
 
 // GetStats returns statistics for the interface
 func (i *Interface) GetStats() (map[string]interface{}, error) {

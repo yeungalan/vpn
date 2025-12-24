@@ -5,11 +5,11 @@ package wireguard
 import (
 	"fmt"
 	"log"
-	"net"
 	"os/exec"
 	"strings"
 	"time"
 
+	"golang.zx2c4.com/wireguard/conn"
 	"golang.zx2c4.com/wireguard/device"
 	"golang.zx2c4.com/wireguard/tun"
 )
@@ -40,7 +40,10 @@ func (i *Interface) createWindows() error {
 		fmt.Sprintf("[%s] ", realName),
 	)
 
-	wgDevice := device.NewDevice(tunDevice, logger)
+	// Create bind for network connections
+	bind := conn.NewDefaultBind()
+
+	wgDevice := device.NewDevice(tunDevice, bind, logger)
 
 	// Configure the device with our private key and listen port
 	// The IPC format is what wg(8) uses
